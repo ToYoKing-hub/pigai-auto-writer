@@ -1,0 +1,30 @@
+{
+    "username": "你的批改网手机号",
+    "password": "你的批改网密码",
+    "rid": "作文号",
+    "target_score": 90,
+    "skip_profile": false,
+    "skip_class": false,
+    "grind_mode": false,
+    "headless": false,
+    "profile": {
+        "name": "你的姓名",
+        "student_id": "你的学号",
+        "class_name": "你的班级",
+        "school": "你的学校",
+        "email": "你的邮箱"
+    },
+    "class": {
+        "class_id": "班级号(如 C8935816)",
+        "teacher_name": "老师姓名",
+        "cid": "班级数字ID(如 8935816)"
+    },
+    "api": {
+        "provider": "longcat",
+        "protocol": "anthropic",
+        "key": "你的 API Key",
+        "base_url": "https://api.longcat.chat/anthropic",
+        "model": "LongCat-2.0",
+        "max_tokens": 8000
+    }
+}

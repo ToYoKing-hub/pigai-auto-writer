@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批改网自动写作</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0 20px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        header p {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #94a3b8;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card h2 .icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .icon-blue { background: #1e3a5f; color: #60a5fa; }
+        .icon-green { background: #14532d; color: #4ade80; }
+        .icon-purple { background: #3b1f6e; color: #a78bfa; }
+        .icon-orange { background: #431407; color: #fb923c; }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #e2e8f0;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            border-color: #60a5fa;
+        }
+
+        .form-group input::placeholder {
+            color: #475569;
+        }
+
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-secondary {
+            background: #334155;
+            color: #e2e8f0;
+        }
+
+        .btn-secondary:hover { background: #475569; }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 24px 0;
+        }
+
+        /* 日志区域 */
+        .log-box {
+            background: #0f172a;
+            border-radius: 8px;
+            border: 1px solid #1e293b;
+            padding: 16px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .log-box .log-line { color: #94a3b8; }
+        .log-line.success { color: #4ade80; }
+        .log-line.error { color: #f87171; }
+        .log-line.info { color: #60a5fa; }
+        .log-line.score { color: #fbbf24; font-weight: bold; font-size: 15px; }
+
+        /* 分数显示 */
+        .score-display {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .score-value {
+            font-size: 56px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fbbf24, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .score-label { color: #64748b; font-size: 14px; margin-top: 4px; }
+
+        .score-pass { color: #4ade80; font-size: 18px; margin-top: 8px; }
+        .score-fail { color: #f87171; font-size: 18px; margin-top: 8px; }
+
+        /* 状态指示 */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #475569;
+        }
+
+        .status-dot.running { background: #fbbf24; animation: pulse 1.5s infinite; }
+        .status-dot.done { background: #4ade80; }
+        .status-dot.error { background: #f87171; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .full-width { grid-column: 1 / -1; }
+
+        .section-desc {
+            font-size: 12px;
+            color: #475569;
+            margin-bottom: 12px;
+        }
+
+        /* 开关样式 */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border: 1px solid #1e293b;
+        }
+
+        .toggle-row .toggle-label {
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+
+        .toggle-row .toggle-label small {
+            display: block;
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 48px;
+            height: 26px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #334155;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            left: 3px;
+            bottom: 3px;
+            background: #94a3b8;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: #3b82f6;
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>批改网自动写作</h1>
+            <p>自动登录 → 撰写作文 → 提交 → 检查分数</p>
+        </header>
+
+        <!-- 状态栏 -->
+        <div class="status-bar" id="statusBar">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">就绪</span>
+        </div>
+
+        <!-- 账号配置 -->
+        <div class="card">
+            <h2><span class="icon icon-blue">👤</span> 账号设置</h2>
+            <p class="section-desc">批改网登录信息</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>手机号/用户名</label>
+                    <input type="text" id="username" value="{{ config.username }}">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="password" value="{{ config.password }}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>作文号 (rid)</label>
+                    <input type="text" id="rid" value="{{ config.rid }}" placeholder="输入作文号">
+                </div>
+                <div class="form-group">
+                    <label>目标分数</label>
+                    <input type="number" id="target_score" value="{{ config.target_score }}" min="0" max="100">
+                </div>
+            </div>
+        </div>
+
+        <!-- 个人信息 -->
+        <div class="card">
+            <h2><span class="icon icon-green">📋</span> 个人信息</h2>
+            <p class="section-desc">首次运行时需要填写，之后会自动保存</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="profile_name" value="{{ config.profile.name }}">
+                </div>
+                <div class="form-group">
+                    <label>学号</label>
+                    <input type="text" id="profile_student_id" value="{{ config.profile.student_id }}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>班级</label>
+                    <input type="text" id="profile_class_name" value="{{ config.profile.class_name }}">
+                </div>
+                <div class="form-group">
+                    <label>学校</label>
+                    <input type="text" id="profile_school" value="{{ config.profile.school }}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>邮箱</label>
+                <input type="text" id="profile_email" value="{{ config.profile.email }}">
+            </div>
+        </div>
+
+        <!-- 班级信息 -->
+        <div class="card">
+            <h2><span class="icon icon-purple">🏫</span> 班级信息</h2>
+            <p class="section-desc">用于加入老师指定的班级</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>班级号</label>
+                    <input type="text" id="class_id" value="{{ config.class.class_id }}" placeholder="如 C8935816">
+                </div>
+                <div class="form-group">
+                    <label>老师姓名</label>
+                    <input type="text" id="class_teacher" value="{{ config.class.teacher_name }}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>班级数字ID (cid)</label>
+                <input type="text" id="class_cid" value="{{ config.class.cid }}" placeholder="如 8935816">
+            </div>
+        </div>
+
+        <!-- API 配置 -->
+        <div class="card">
+            <h2><span class="icon icon-orange">🤖</span> API 配置</h2>
+            <p class="section-desc">用于自动生成作文（未知题目时调用），选择供应商后自动填充</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>模型供应商</label>
+                    <select id="api_provider" onchange="onProviderChange()">
+                        <option value="longcat">LongCat (闪极星)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>协议</label>
+                    <select id="api_protocol">
+                        <option value="anthropic">Anthropic</option>
+                        <option value="openai">OpenAI</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="text" id="api_key" value="{{ config.api.key }}">
+                </div>
+                <div class="form-group">
+                    <label>模型名称</label>
+                    <input type="text" id="api_model" value="{{ config.api.model }}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>API 地址 (base_url)</label>
+                    <input type="text" id="api_base_url" value="{{ config.api.base_url }}">
+                </div>
+                <div class="form-group">
+                    <label>最大 Token 数</label>
+                    <input type="number" id="api_max_tokens" value="{{ config.api.max_tokens }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- 步骤开关 -->
+        <div class="card">
+            <h2>⚙️ 执行选项</h2>
+
+            <div class="toggle-row">
+                <div class="toggle-label">
+                    跳过个人信息
+                    <small>已填写过请开启，首次使用请关闭</small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="skip_profile">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row">
+                <div class="toggle-label">
+                    跳过加入班级
+                    <small>已加入过请开启，首次使用请关闭</small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="skip_class">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-row" style="border-color: #b45309;">
+                <div class="toggle-label">
+                    🔥 刷分模式
+                    <small>开启后反复提交不同作文，直到达到目标分数（最多10次）</small>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="grind_mode">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="actions">
+            <button class="btn btn-primary" id="btnRun" onclick="startRun()">▶ 开始运行</button>
+            <button class="btn btn-secondary" id="btnSave" onclick="saveConfig()">💾 保存配置</button>
+        </div>
+
+        <!-- 分数显示 -->
+        <div class="card" id="scoreCard" style="display:none;">
+            <div class="score-display">
+                <div class="score-value" id="scoreValue">--</div>
+                <div class="score-label">最终分数</div>
+                <div id="scoreResult"></div>
+            </div>
+        </div>
+
+        <!-- 运行日志 -->
+        <div class="card">
+            <h2>📝 运行日志</h2>
+            <div class="log-box" id="logBox">
+                <div class="log-line">等待启动...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let statusInterval = null;
+        let providerPresets = {};
+
+        async function initConfig() {
+            try {
+                const resp = await fetch('/api/presets');
+                providerPresets = await resp.json();
+            } catch (e) {
+                providerPresets = {};
+            }
+
+            const select = document.getElementById('api_provider');
+            select.innerHTML = '';
+            for (const [key, preset] of Object.entries(providerPresets)) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = preset.name;
+                select.appendChild(opt);
+            }
+
+            // 根据当前配置设置选中项（不覆盖已保存的值）
+            const currentProvider = '{{ config.api.provider }}' || 'longcat';
+            select.value = providerPresets[currentProvider] ? currentProvider : 'custom';
+            document.getElementById('api_protocol').value = '{{ config.api.protocol }}' || 'anthropic';
+        }
+
+        function onProviderChange() {
+            const key = document.getElementById('api_provider').value;
+            if (key === 'custom') return;
+            const preset = providerPresets[key];
+            if (!preset) return;
+            document.getElementById('api_protocol').value = preset.protocol;
+            document.getElementById('api_base_url').value = preset.base_url;
+            document.getElementById('api_model').value = preset.model;
+        }
+
+        function getConfig() {
+            return {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                rid: document.getElementById('rid').value,
+                target_score: parseInt(document.getElementById('target_score').value) || 90,
+                skip_profile: document.getElementById('skip_profile').checked,
+                skip_class: document.getElementById('skip_class').checked,
+                grind_mode: document.getElementById('grind_mode').checked,
+                profile: {
+                    name: document.getElementById('profile_name').value,
+                    student_id: document.getElementById('profile_student_id').value,
+                    class_name: document.getElementById('profile_class_name').value,
+                    school: document.getElementById('profile_school').value,
+                    email: document.getElementById('profile_email').value,
+                },
+                class: {
+                    class_id: document.getElementById('class_id').value,
+                    teacher_name: document.getElementById('class_teacher').value,
+                    cid: document.getElementById('class_cid').value,
+                },
+                api: {
+                    provider: document.getElementById('api_provider').value,
+                    protocol: document.getElementById('api_protocol').value,
+                    key: document.getElementById('api_key').value,
+                    base_url: document.getElementById('api_base_url').value,
+                    model: document.getElementById('api_model').value,
+                    max_tokens: parseInt(document.getElementById('api_max_tokens').value) || 8000,
+                },
+            };
+        }
+
+        async function saveConfig() {
+            const config = getConfig();
+            const resp = await fetch('/api/save_config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(config),
+            });
+            const data = await resp.json();
+            alert(data.message || '已保存');
+        }
+
+        async function startRun() {
+            const config = getConfig();
+
+            if (!config.username || !config.password) {
+                alert('请填写账号和密码');
+                return;
+            }
+            if (!config.rid) {
+                alert('请填写作文号');
+                return;
+            }
+
+            // 禁用按钮
+            document.getElementById('btnRun').disabled = true;
+            document.getElementById('btnRun').textContent = '⏳ 运行中...';
+            document.getElementById('scoreCard').style.display = 'none';
+            document.getElementById('logBox').innerHTML = '<div class="log-line info">正在启动...</div>';
+
+            const resp = await fetch('/api/run', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(config),
+            });
+            const data = await resp.json();
+
+            if (data.status === 'error') {
+                alert(data.message);
+                document.getElementById('btnRun').disabled = false;
+                document.getElementById('btnRun').textContent = '▶ 开始运行';
+                return;
+            }
+
+            // 开始轮询状态
+            if (statusInterval) clearInterval(statusInterval);
+            statusInterval = setInterval(pollStatus, 2000);
+        }
+
+        async function pollStatus() {
+            try {
+                const resp = await fetch('/api/status');
+                const data = await resp.json();
+
+                // 更新日志
+                const logBox = document.getElementById('logBox');
+                logBox.innerHTML = '';
+                data.logs.forEach(line => {
+                    const div = document.createElement('div');
+                    div.className = 'log-line';
+                    if (line.includes('✓') || line.includes('SUCCESS') || line.includes('达标')) div.classList.add('success');
+                    else if (line.includes('✗') || line.includes('错误') || line.includes('ERROR')) div.classList.add('error');
+                    else if (line.includes('★') || line.includes('分数')) div.classList.add('score');
+                    else if (line.includes('步骤')) div.classList.add('info');
+                    div.textContent = line;
+                    logBox.appendChild(div);
+                });
+                logBox.scrollTop = logBox.scrollHeight;
+
+                // 更新状态
+                const dot = document.getElementById('statusDot');
+                const text = document.getElementById('statusText');
+
+                if (data.running) {
+                    dot.className = 'status-dot running';
+                    text.textContent = '运行中...';
+                } else {
+                    dot.className = data.error ? 'status-dot error' : 'status-dot done';
+                    text.textContent = data.error ? '运行出错' : '运行完成';
+
+                    // 恢复按钮
+                    document.getElementById('btnRun').disabled = false;
+                    document.getElementById('btnRun').textContent = '▶ 开始运行';
+
+                    // 显示分数
+                    if (data.score !== null) {
+                        document.getElementById('scoreCard').style.display = 'block';
+                        document.getElementById('scoreValue').textContent = data.score;
+                        const result = document.getElementById('scoreResult');
+                        const target = parseInt(document.getElementById('target_score').value) || 90;
+                        if (data.score >= target) {
+                            result.className = 'score-pass';
+                            result.textContent = `✓ 达标! (目标 ${target}分)`;
+                        } else {
+                            result.className = 'score-fail';
+                            result.textContent = `✗ 未达标 (目标 ${target}分)`;
+                        }
+                    }
+
+                    if (statusInterval) {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                    }
+                }
+            } catch (e) {
+                console.error('Poll error:', e);
+            }
+        }
+
+        // 页面加载时初始化供应商下拉
+        initConfig();
+    </script>
+</body>
+</html>
